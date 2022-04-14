@@ -37,8 +37,8 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     count = author.posts.count()
     following = (
-        True if request.user.is_authenticated and
-        author in User.objects.filter(following__user=request.user)
+        True if request.user.is_authenticated
+        and author in User.objects.filter(following__user=request.user)
         else False
     )
     context = {
@@ -82,7 +82,9 @@ def post_edit(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
     if post.author != request.user:
         return redirect('posts:post_detail', post.pk)
-    form = PostForm(request.POST or None, files=request.FILES or None, instance=post)
+    form = PostForm(
+        request.POST or None, files=request.FILES or None, instance=post
+    )
     if request.method == 'POST':
         if form.is_valid():
             form.save()
@@ -128,7 +130,9 @@ def profile_unfollow(request, username):
 
 
 def page_not_found(request, exception):
-    return render(request, 'posts/404.html', {'path': request.path}, status=404)
+    return render(
+        request, 'posts/404.html', {'path': request.path}, status=404
+    )
 
 
 def server_error(request):
