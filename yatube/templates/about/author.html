@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Об авторе проекта{% endblock %}
+{% block content %}
+{% load static %}
+<style>
+  .border_style_inset{
+	border: 5px inset lightskyblue;
+	padding: 3px;
+	margin-bottom: 5px;
+	}
+</style>
+<div class="row">
+  <div class="col-3" style="background: white;">
+    <div class="border_style_inset">
+    <img src="{% static 'img/1.jpg' %}" width="290" height="310" >
+    <FONT FACE="GABRIOLA" SIZE="5">
+      <p>Стацюк Виталий</p>
+    </FONT>
+    <p>Страница на
+      <a href="https://github.com/VitaliySta">GitHub</a>
+    </p>
+    </div>
+  </div>
+  <div class="col-9" style="background: white;">
+    <h2>О себе</h2>
+    <p>Всем привет!!! Я обучаюсь в
+      <a href="https://practicum.yandex.ru/">Яндекс.Практикуме</a>
+      на  курсе Python-разработчик и это мой yatube проект.
+    </p>
+  </div>
+</div>
+{% endblock %}
