@@ -175,7 +175,9 @@ class PostsViewsTests(TestCase):
         self.authorized_client.get(
             reverse('posts:profile_follow', kwargs={'username': self.author})
         )
-        self.assertEqual(Follow.objects.get(user=self.user).author, self.author)
+        self.assertEqual(
+            Follow.objects.get(user=self.user).author, self.author
+        )
 
     def test_authorized_user_can_unfollow_other_users(self):
         self.authorized_client.get(

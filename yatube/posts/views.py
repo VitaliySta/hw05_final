@@ -1,7 +1,5 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import PostForm, CommentForm
@@ -12,7 +10,9 @@ User = get_user_model()
 
 
 def index(request):
-    context = get_page_context(Post.objects.select_related('author').all(), request)
+    context = get_page_context(
+        Post.objects.select_related('author').all(), request
+    )
     return render(request, 'posts/index.html', context)
 
 
