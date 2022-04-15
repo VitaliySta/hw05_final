@@ -1,6 +1,8 @@
 import shutil
 import tempfile
 
+from http import HTTPStatus
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -57,13 +59,13 @@ class PostFormTests(TestCase):
             b'\x0A\x00\x3B'
         )
         uploaded = SimpleUploadedFile(
-            name='small.gif',
+            name='smalll.gif',
             content=small_gif,
             content_type='image/gif'
         )
         form_data = {
-            'text': 'test_text',
-            'group': self.group.id,
+            'text': 'new_test_text',
+            'group': self.group.pk,
             'image': uploaded,
         }
         response = self.author_client.post(
@@ -72,14 +74,16 @@ class PostFormTests(TestCase):
             follow=True
         )
         self.assertRedirects(response, reverse('posts:profile',
-                                               kwargs={'username': 'auth'}))
+                                               kwargs={'username': self.author}))
         self.assertEqual(Post.objects.count(), post_count + 1)
         self.assertTrue(
             Post.objects.filter(
-                group_id=1,
-                text='test_text',
+                group_id=self.group.pk,
+                text='new_test_text',
             ).exists()
         )
+        post_text_new = Post.objects.get(text='new_test_text')
+        self.assertEqual(post_text_new.image, 'posts/smalll.gif')
 
     def test_author_of_the_post_can_edit_it(self):
         post_count = Post.objects.count()
@@ -106,10 +110,11 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        post_text_new = Post.objects.get(id=self.group.id)
+        post_text_new = Post.objects.get(id=self.post.pk)
         self.assertEqual(Post.objects.count(), post_count)
         self.assertEqual(post_text_new.text, 'new_text')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(post_text_new.image, 'posts/small.gif')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_not_author_of_the_post_cannot_edit_it(self):
         author2 = User.objects.create_user(username='new author')
@@ -124,9 +129,10 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        post_text = Post.objects.get(id=self.group.id)
+        post_text = Post.objects.get(id=self.post.id)
         self.assertEqual(post_text.text, 'test_text')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(post_text.group.slug, self.group.slug)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_create_user(self):
         """Валидная форма создает нового пользователя."""
@@ -144,8 +150,6 @@ class PostFormTests(TestCase):
     def test_authorized_user_can_comment_on_the_post(self):
         comments_count = Comment.objects.count() + 1
         form_data = {
-            'post': self.post.pk,
-            'author': self.user,
             'text': 'comment-for-post',
         }
         self.authorized_client.post(
@@ -154,12 +158,14 @@ class PostFormTests(TestCase):
             follow=True
         )
         self.assertEqual(Comment.objects.count(), comments_count)
+        post = self.authorized_client.get(
+            reverse('posts:post_detail', kwargs={'post_id': self.post.pk})
+        )
+        self.assertEqual(post.context['comments'][1].text, 'comment-for-post')
 
     def test_guest_user_cannot_comment_on_the_post(self):
         comments_count = Comment.objects.count()
         form_data = {
-            'post': self.post.pk,
-            'author': self.user,
             'text': 'comment-for-post',
         }
         self.guest_client.post(

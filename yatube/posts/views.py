@@ -6,21 +6,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import PostForm, CommentForm
 from .models import Comment, Follow, Group, Post
+from .utils import get_page_context
 
 User = get_user_model()
 
 
-def get_page_context(queryset, request):
-    paginator = Paginator(queryset, settings.PAGINATION_NUMBER)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return {
-        'page_obj': page_obj,
-    }
-
-
 def index(request):
-    context = get_page_context(Post.objects.all(), request)
+    context = get_page_context(Post.objects.select_related('author').all(), request)
     return render(request, 'posts/index.html', context)
 
 
@@ -38,7 +30,9 @@ def profile(request, username):
     count = author.posts.count()
     following = (
         True if request.user.is_authenticated
-        and author in User.objects.filter(following__user=request.user)
+        and Follow.objects.filter(
+            user=request.user, author=author
+        ).exists()
         else False
     )
     context = {
@@ -68,7 +62,7 @@ def post_detail(request, post_id):
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(request.POST or None, files=request.FILES or None)
     if request.method == 'POST':
         if form.is_valid():
             form.instance.author = request.user

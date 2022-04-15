@@ -26,7 +26,6 @@ class PostsURLTests(TestCase):
         )
 
     def setUp(self):
-        self.guest_client = Client()
         self.user = User.objects.create_user(username='One')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
@@ -36,12 +35,12 @@ class PostsURLTests(TestCase):
             '/': HTTPStatus.OK,
             f'/group/{self.group.slug}/': HTTPStatus.OK,
             f'/profile/{self.user}/': HTTPStatus.OK,
-            f'/posts/{self.group.id}/': HTTPStatus.OK,
+            f'/posts/{self.post.pk}/': HTTPStatus.OK,
             '/unexisting_page': HTTPStatus.NOT_FOUND,
         }
         for address, status in url_name_status.items():
             with self.subTest(address=address):
-                response = self.guest_client.get(address)
+                response = self.client.get(address)
                 self.assertEqual(response.status_code, status)
 
     def test_post_create_url_exists_at_desired_location_authorized(self):
@@ -49,34 +48,34 @@ class PostsURLTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_edit_url_exists_at_desired_location_authorized(self):
-        response = self.author_client.get(f'/posts/{self.group.id}/edit/')
+        response = self.author_client.get(f'/posts/{self.post.pk}/edit/')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_url_redirect_anonymous_on_admin_login(self):
         url_names_redirect = {
             '/create/': '/auth/login/?next=/create/',
-            f'/posts/{self.group.id}/edit/':
-                f'/auth/login/?next=/posts/{self.group.id}/edit/',
+            f'/posts/{self.post.pk}/edit/':
+                f'/auth/login/?next=/posts/{self.post.pk}/edit/',
         }
         for address, redirect in url_names_redirect.items():
             with self.subTest(address=address):
-                response = self.guest_client.get(address, follow=True)
+                response = self.client.get(address, follow=True)
                 self.assertRedirects(response, redirect)
 
     def test_post_edit_url_redirect_authorized_not_author_post(self):
         response = self.authorized_client.get(
-            f'/posts/{self.group.id}/edit/', follow=True
+            f'/posts/{self.post.pk}/edit/', follow=True
         )
-        self.assertRedirects(response, f'/posts/{self.group.id}/')
+        self.assertRedirects(response, f'/posts/{self.post.pk}/')
 
     def test_urls_uses_correct_template(self):
         url_names_templates = {
             '/': 'posts/index.html',
             f'/group/{self.group.slug}/': 'posts/group_list.html',
             f'/profile/{self.user}/': 'posts/profile.html',
-            f'/posts/{self.group.id}/': 'posts/post_detail.html',
+            f'/posts/{self.post.pk}/': 'posts/post_detail.html',
             '/create/': 'posts/create_post.html',
-            f'/posts/{self.group.id}/edit/': 'posts/create_post.html',
+            f'/posts/{self.post.pk}/edit/': 'posts/create_post.html',
         }
         for address, template in url_names_templates.items():
             with self.subTest(address=address):

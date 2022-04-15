@@ -54,7 +54,6 @@ class PostsViewsTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
-        self.guest_client = Client()
         self.user = User.objects.create_user(username='One')
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
@@ -63,9 +62,9 @@ class PostsViewsTests(TestCase):
         templates_pages_names = {
             reverse('posts:index'): 'posts/index.html',
             reverse('posts:group_list',
-                    kwargs={'slug': 'test_slug'}): 'posts/group_list.html',
+                    kwargs={'slug': self.group.slug}): 'posts/group_list.html',
             reverse('posts:profile',
-                    kwargs={'username': 'auth'}): 'posts/profile.html',
+                    kwargs={'username': self.author}): 'posts/profile.html',
             reverse('posts:post_detail',
                     kwargs={'post_id': 1}): 'posts/post_detail.html',
             reverse('posts:create_post'): 'posts/create_post.html',
@@ -90,14 +89,14 @@ class PostsViewsTests(TestCase):
 
     def test_group_list_page_show_correct_context(self):
         response = self.authorized_client.get(reverse(
-            'posts:group_list', kwargs={'slug': 'test_slug'})
+            'posts:group_list', kwargs={'slug': self.group.slug})
         )
         first_object = response.context['page_obj'][0]
         self.verify_post_context(first_object)
 
     def test_profile_page_show_correct_context(self):
         response = self.authorized_client.get(reverse(
-            'posts:profile', kwargs={'username': 'auth'})
+            'posts:profile', kwargs={'username': self.author})
         )
         first_object = response.context['page_obj'][0]
         self.verify_post_context(first_object)
@@ -137,34 +136,27 @@ class PostsViewsTests(TestCase):
 
     def test_post_in_correct_group(self):
         response = self.authorized_client.get(reverse(
-            'posts:group_list', kwargs={'slug': 'test_slug'})
+            'posts:group_list', kwargs={'slug': self.group.slug})
         )
         first_object = response.context['page_obj'][0]
         post_text = first_object.text
         self.assertEqual(post_text, PostsViewsTests.post.text)
 
     def test_cache(self):
-        response1 = self.guest_client.get(reverse('posts:index')).content
+        response1 = self.client.get(reverse('posts:index')).content
         self.post.delete()
-        response2 = self.guest_client.get(reverse('posts:index')).content
+        response2 = self.client.get(reverse('posts:index')).content
         self.assertEqual(response1, response2)
         cache.clear()
-        response3 = self.guest_client.get(reverse('posts:index')).content
+        response3 = self.client.get(reverse('posts:index')).content
         self.assertNotEqual(response1, response3)
 
     def test_new_user_post_appears_in_the_feed_of_those_who_follow_him(self):
-        user = User.objects.create_user(username='Oleg')
-        authorized_client = Client()
-        authorized_client.force_login(user)
-        Post.objects.create(
-            author=user,
-            text='test_text',
-        )
         Follow.objects.create(
-            user=user,
+            user=self.user,
             author=self.author,
         )
-        response = authorized_client.get(reverse('posts:follow_index'))
+        response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertEqual(len(response.context['page_obj']), 1)
         self.assertEqual(response.context['page_obj'][0].text, self.post.text)
 
@@ -172,10 +164,6 @@ class PostsViewsTests(TestCase):
         user = User.objects.create_user(username='Elena')
         authorized_client = Client()
         authorized_client.force_login(user)
-        Post.objects.create(
-            author=user,
-            text='test_text',
-        )
         Follow.objects.create(
             user=user,
             author=self.author,
@@ -183,18 +171,19 @@ class PostsViewsTests(TestCase):
         response = self.authorized_client.get(reverse('posts:follow_index'))
         self.assertEqual(len(response.context['page_obj']), 0)
 
-    def test_authorized_user_can_follow_and_unfollow_other_users(self):
-        user = User.objects.create_user(username='Privet')
-        authorized_client = Client()
-        authorized_client.force_login(user)
-        authorized_client.get(
+    def test_authorized_user_can_follow_other_users(self):
+        self.authorized_client.get(
             reverse('posts:profile_follow', kwargs={'username': self.author})
         )
-        self.assertEqual(Follow.objects.get(user=user).author, self.author)
-        authorized_client.get(
+        self.assertEqual(Follow.objects.get(user=self.user).author, self.author)
+
+    def test_authorized_user_can_unfollow_other_users(self):
+        self.authorized_client.get(
             reverse('posts:profile_unfollow', kwargs={'username': self.author})
         )
-        self.assertEqual(len(Follow.objects.all()), 0)
+        self.assertFalse(
+            Follow.objects.filter(user=self.user, author=self.author).exists()
+        )
 
 
 class PaginatorViewsTest(TestCase):
@@ -220,21 +209,28 @@ class PaginatorViewsTest(TestCase):
     def test_page_contains_ten_records(self):
         reverses = [
             reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': 'test_slug'}),
-            reverse('posts:profile', kwargs={'username': 'auth'}),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.author}),
         ]
         for url in reverses:
             with self.subTest(url=url):
                 response = self.client.get(url)
-                self.assertEqual(len(response.context['page_obj']), 10)
+                self.assertEqual(
+                    len(response.context['page_obj']),
+                    settings.PAGINATION_NUMBER
+                )
 
     def test_page_contains_three_records(self):
+        posts_count = Post.objects.count()
         reverses = [
             reverse('posts:index'),
-            reverse('posts:group_list', kwargs={'slug': 'test_slug'}),
-            reverse('posts:profile', kwargs={'username': 'auth'}),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.author}),
         ]
         for url in reverses:
             with self.subTest(url=url):
                 response = self.client.get(url + '?page=2')
-                self.assertEqual(len(response.context['page_obj']), 3)
+                self.assertEqual(
+                    len(response.context['page_obj']),
+                    posts_count - settings.PAGINATION_NUMBER
+                )
