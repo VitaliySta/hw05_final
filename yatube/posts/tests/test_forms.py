@@ -163,7 +163,9 @@ class PostFormTests(TestCase):
         post = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.pk})
         )
-        self.assertEqual(post.context['comments'].last().text, form_data['text'])
+        self.assertEqual(
+            post.context['comments'].last().text, form_data['text']
+        )
 
     def test_guest_user_cannot_comment_on_the_post(self):
         comments_count = Comment.objects.count()
