@@ -29,11 +29,10 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     count = author.posts.count()
     following = (
-        True if request.user.is_authenticated
+        request.user.is_authenticated
         and Follow.objects.filter(
             user=request.user, author=author
         ).exists()
-        else False
     )
     context = {
         'author': author,

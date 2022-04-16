@@ -1,6 +1,5 @@
 import shutil
 import tempfile
-
 from http import HTTPStatus
 
 from django.conf import settings
@@ -82,11 +81,10 @@ class PostFormTests(TestCase):
         self.assertTrue(
             Post.objects.filter(
                 group_id=self.group.pk,
-                text='new_test_text',
+                text=form_data['text'],
+                image='posts/smalll.gif'
             ).exists()
         )
-        post_text_new = Post.objects.get(text='new_test_text')
-        self.assertEqual(post_text_new.image, 'posts/smalll.gif')
 
     def test_author_of_the_post_can_edit_it(self):
         post_count = Post.objects.count()
@@ -113,10 +111,11 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        post_text_new = Post.objects.get(id=self.post.pk)
+        post_new = Post.objects.get(id=self.post.pk)
         self.assertEqual(Post.objects.count(), post_count)
-        self.assertEqual(post_text_new.text, 'new_text')
-        self.assertEqual(post_text_new.image, 'posts/small.gif')
+        self.assertEqual(post_new.text, form_data['text'])
+        self.assertEqual(post_new.group.title, self.group.title)
+        self.assertEqual(post_new.image, 'posts/small.gif')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_not_author_of_the_post_cannot_edit_it(self):
@@ -132,9 +131,9 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True
         )
-        post_text = Post.objects.get(id=self.post.id)
-        self.assertEqual(post_text.text, 'test_text')
-        self.assertEqual(post_text.group.slug, self.group.slug)
+        post = Post.objects.get(id=self.post.id)
+        self.assertEqual(post.text, self.post.text)
+        self.assertEqual(post.group.slug, self.group.slug)
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_create_user(self):
@@ -164,7 +163,7 @@ class PostFormTests(TestCase):
         post = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.pk})
         )
-        self.assertEqual(post.context['comments'][1].text, 'comment-for-post')
+        self.assertEqual(post.context['comments'].last().text, form_data['text'])
 
     def test_guest_user_cannot_comment_on_the_post(self):
         comments_count = Comment.objects.count()
