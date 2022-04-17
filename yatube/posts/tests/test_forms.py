@@ -82,7 +82,7 @@ class PostFormTests(TestCase):
             Post.objects.filter(
                 group_id=self.group.pk,
                 text=form_data['text'],
-                image='posts/smalll.gif'
+                image=f'posts/{uploaded.name}'
             ).exists()
         )
 
@@ -115,7 +115,7 @@ class PostFormTests(TestCase):
         self.assertEqual(Post.objects.count(), post_count)
         self.assertEqual(post_new.text, form_data['text'])
         self.assertEqual(post_new.group.title, self.group.title)
-        self.assertEqual(post_new.image, 'posts/small.gif')
+        self.assertEqual(post_new.image, f'posts/{uploaded.name}')
         self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_not_author_of_the_post_cannot_edit_it(self):
